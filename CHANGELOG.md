@@ -1,5 +1,17 @@
 # Changelog
 
+## [16.0.0](https://github.com/LazyVim/LazyVim/compare/v15.15.0...v16.0.0) (2026-04-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **refactoring:** conform to upstream breaking changes on 2.0 branch ([#7124](https://github.com/LazyVim/LazyVim/issues/7124))
+
+### Bug Fixes
+
+* **oxc:** prefer top-level oxlint root_dir in monorepos ([d840410](https://github.com/LazyVim/LazyVim/commit/d840410047d20a8f93fb8d473599209ebe95584e))
+* **refactoring:** conform to upstream breaking changes on 2.0 branch ([#7124](https://github.com/LazyVim/LazyVim/issues/7124)) ([d926923](https://github.com/LazyVim/LazyVim/commit/d92692309c41581e1f839033fbccd745be732c7e))
+
 ## [15.15.0](https://github.com/LazyVim/LazyVim/compare/v15.14.0...v15.15.0) (2026-04-02)
 
 

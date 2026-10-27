@@ -1,0 +1,71 @@
+name: Local validation
+'on':
+  pull_request:
+    branches:
+    - main
+  push:
+    branches:
+    - main
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+    - name: Checkout exact PR head
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    - name: Install test prerequisites
+      shell: bash
+      run: |-
+        set -euo pipefail
+        if [ "$(id -u)" -eq 0 ]; then
+          apt-get update
+          apt-get install -y python3 libreadline-dev build-essential git curl unzip
+        else
+          sudo apt-get update
+          sudo apt-get install -y python3 libreadline-dev build-essential git curl unzip
+        fi
+    - name: Install verified pinned tools
+      shell: bash
+      run: |-
+        set -euo pipefail
+        python3 --version
+        test "$(uname -m)" = x86_64
+        mkdir -p "$RUNNER_TEMP/lazyvim-tools"
+        curl --fail --location --silent --show-error 'https://github.com/neovim/neovim/releases/download/v0.11.5/nvim-linux-x86_64.tar.gz' -o "$RUNNER_TEMP/lazyvim-tools/nvim.tar.gz"
+        printf '%s  %s\n' 'b2f91117be5b5ea39edd7297156dc2a4a8df4add6c95a90809a8df19e7ab6f52' "$RUNNER_TEMP/lazyvim-tools/nvim.tar.gz" | sha256sum -c -
+        tar -xzf "$RUNNER_TEMP/lazyvim-tools/nvim.tar.gz" -C "$RUNNER_TEMP/lazyvim-tools"
+        curl --fail --location --silent --show-error 'https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-linux-x86_64.zip' -o "$RUNNER_TEMP/lazyvim-tools/stylua.zip"
+        printf '%s  %s\n' 'a485f72bbfa22e4642e77a84b5edc2611a5cab7477b34e2e709dd8f78e919895' "$RUNNER_TEMP/lazyvim-tools/stylua.zip" | sha256sum -c -
+        unzip -q "$RUNNER_TEMP/lazyvim-tools/stylua.zip" -d "$RUNNER_TEMP/lazyvim-tools/stylua"
+        chmod +x "$RUNNER_TEMP/lazyvim-tools/stylua/stylua"
+        printf '%s\n' "$RUNNER_TEMP/lazyvim-tools/nvim-linux-x86_64/bin" "$RUNNER_TEMP/lazyvim-tools/stylua" >> "$GITHUB_PATH"
+    - name: Reject debug calls
+      shell: bash
+      run: |-
+        set -euo pipefail
+        status=0
+        /bin/grep --line-number -r -P '^(?!\s*--).*\bdd\(' lua || status=$?
+        case "$status" in
+          0) echo 'Debug messages found'; exit 1 ;;
+          1) echo 'No debug messages found' ;;
+          *) exit "$status" ;;
+        esac
+    - name: Validate formatting and run existing Neovim suite
+      shell: bash
+      run: |-
+        set -euo pipefail
+        test ! -e "$HOME/projects/lazy.nvim"
+        mkdir -p "$HOME/projects/lazy.nvim"
+        git -C "$HOME/projects/lazy.nvim" init --quiet
+        git -C "$HOME/projects/lazy.nvim" fetch --depth=1 https://github.com/folke/lazy.nvim.git 306a05526ada86a7b30af95c5cc81ffba93fef97
+        git -C "$HOME/projects/lazy.nvim" checkout --detach FETCH_HEAD
+        test "$(git -C "$HOME/projects/lazy.nvim" rev-parse HEAD)" = 306a05526ada86a7b30af95c5cc81ffba93fef97
+        nvim --version
+        stylua --version
+        stylua --check lua
+        ./scripts/test
